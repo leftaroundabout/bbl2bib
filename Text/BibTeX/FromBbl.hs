@@ -34,13 +34,14 @@ braced' p = do
    char '{'
    contents <- go 0
    char '}'
-   case runParser p "" contents of
+   case runParser (whitespace>>p) "" contents of
      Right r -> pure r
      Left err -> empty
  where go :: Int -> Parsec Void String String
        go n = withRecovery (const $ pure"") $ do
+         ws <- whitespace
          c <- noneOf $ if n==0 then ['}'] else []
-         (c:)<$>case c of
+         (ws++).(c:)<$>case c of
            '{' -> go $ n+1
            '}' -> go $ n-1
            _   -> go   n
