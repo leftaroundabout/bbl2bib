@@ -8,6 +8,7 @@ import Text.Megaparsec.Char
 
 import qualified Text.BibTeX.Entry as BibTeX
 
+import Control.Arrow (first)
 import Control.Monad (replicateM)
 import Data.List (intercalate)
 import Data.Void
@@ -62,7 +63,7 @@ bblEntry = do
         tqu1 "verb" f
         tqu "verb"
         whitespace
-        contents <- some (noneOf " ")
+        contents <- some (noneOf " \n")
         tqu "endverb"
         pure [(f, contents)]
   fields <- many
@@ -81,11 +82,27 @@ bblEntry = do
    <|>take 0 <$> field "sortinithash"
    <|>take 0 <$> field "labelnamesource"
    <|>take 0 <$> field "labeltitlesource"
+   <|>try`id`do
+       tqu1 "list" "publisher"
+       n <- read<$>braced
+       pubs <- braced' . replicateM n $ braced
+       pure $ ("publisher",) <$> pubs
    <|>field "title"
    <|>field "year"
+   <|>field "month"
+   <|>field "number"
+   <|>field "booktitle"
+   <|>field "pages"
+   <|>try (tqu1"range""pages" >>braced'`id`do
+        t <- getInput
+        pure []) 
+   <|>field "volume"
    <|>field "eprinttype"
+   <|>map (first $ take 7)<$>field "journaltitle"
    <|>verbField "url"
    <|>verbField "eprint"
+   <|>verbField "doi"
+   <|>verbField "file"
   
   tqu "endentry"
      
