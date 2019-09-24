@@ -9,12 +9,34 @@ import qualified Text.BibTeX.Entry as BibTeX
 
 import Data.Void
 
+tqu :: String -> Parsec Void String String
+tqu s = char '\\' >> string s
+
+tqu1 :: String -> String -> Parsec Void String (String,String)
+tqu1 s f = (,) <$> tqu s <*> braced' (string f)
+
+braced' :: Parsec Void String a -> Parsec Void String a
+braced' p = do
+   char '{'
+   contents <- go 0
+   char '}'
+   case runParser p "" contents of
+     Right r -> pure r
+     Left err -> empty
+ where go :: Int -> Parsec Void String String
+       go n = withRecovery (const $ pure"") $ do
+         c <- noneOf $ if n==0 then ['}'] else []
+         (c:)<$>case c of
+           '{' -> go $ n+1
+           '}' -> go $ n-1
+           _   -> go   n
+
 braced :: Parsec Void String String
-braced = do {char '{'; s <- many $ satisfy (/='}'); char '}'; return s}
+braced = braced' getInput
 
 bblEntry :: Parsec Void String (BibTeX.T)
 bblEntry = do
-  identifier <- string "\\entry" >> braced
+  identifier <- tqu "entry" >> braced
   entryType <- braced
   return $ BibTeX.Cons entryType identifier []
 
