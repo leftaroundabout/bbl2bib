@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Text.BibTeX.FromBbl where
 
@@ -53,12 +54,46 @@ bblEntry :: Parsec Void String (BibTeX.T)
 bblEntry = do
   identifier <- tqu "entry" >> braced
   entryType <- braced
-  return $ BibTeX.Cons entryType identifier []
+  braced
+  fields <- many
+    $ ((:[]) . ("author",) . intercalate " and " <$> try`id`do
+     tqu1 "name" "author"
+     n <- read<$>braced
+     braced
+     braced' . replicateM n $ do
+        braced' $ do
+           braced' $ string "hash="
+           braced' $ string "family=">>braced)
+   <|>try(tqu1"strng""namehash">>braced>>pure [])
+   <|>try(tqu1"strng""fullhash">>braced>>pure [])
+   <|>try(tqu1"field""labelalpha">>braced>>pure [])
+   <|>try(tqu1"field""sortinit">>braced>>pure [])
+   <|>try(tqu1"field""sortinithash">>braced>>pure [])
+   <|>try(tqu1"field""labelnamesource">>braced>>pure [])
+   <|>try(tqu1"field""labeltitlesource">>braced>>pure [])
+   <|>try(tqu1"field""title">>braced'`id`do
+        t <- getInput
+        pure [("title", t)] )
+   <|>try(tqu1"field""year">>braced'`id`do
+        t <- getInput
+        pure [("year", t)] )
+   <|>try(do
+        tqu1 "verb" "url"
+        tqu "verb"
+        whitespace
+        url <- some (noneOf " ")
+        tqu "endverb"
+        pure [("url", url)]
+       )
+  
+  tqu "endentry"
+     
+  return $ BibTeX.Cons entryType identifier (concat fields)
 
 main :: IO ()
 main = do
   let fName = "web.bbl"
   fConts <- readFile fName
-  let entry = runParser bblEntry fName fConts
+  let entry = runParser (many $ try bblEntry) fName fConts
   print entry
   return ()
