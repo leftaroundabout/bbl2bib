@@ -55,6 +55,16 @@ bblEntry = do
   identifier <- tqu "entry" >> braced
   entryType <- braced
   braced
+  let field f = try $ tqu1"field" f >>braced'`id`do
+        t <- getInput
+        pure [(f, t)] 
+      verbField f = try $ do
+        tqu1 "verb" f
+        tqu "verb"
+        whitespace
+        contents <- some (noneOf " ")
+        tqu "endverb"
+        pure [(f, contents)]
   fields <- many
     $ ((:[]) . ("author",) . intercalate " and " <$> try`id`do
      tqu1 "name" "author"
@@ -66,25 +76,16 @@ bblEntry = do
            braced' $ string "family=">>braced)
    <|>try(tqu1"strng""namehash">>braced>>pure [])
    <|>try(tqu1"strng""fullhash">>braced>>pure [])
-   <|>try(tqu1"field""labelalpha">>braced>>pure [])
-   <|>try(tqu1"field""sortinit">>braced>>pure [])
-   <|>try(tqu1"field""sortinithash">>braced>>pure [])
-   <|>try(tqu1"field""labelnamesource">>braced>>pure [])
-   <|>try(tqu1"field""labeltitlesource">>braced>>pure [])
-   <|>try(tqu1"field""title">>braced'`id`do
-        t <- getInput
-        pure [("title", t)] )
-   <|>try(tqu1"field""year">>braced'`id`do
-        t <- getInput
-        pure [("year", t)] )
-   <|>try(do
-        tqu1 "verb" "url"
-        tqu "verb"
-        whitespace
-        url <- some (noneOf " ")
-        tqu "endverb"
-        pure [("url", url)]
-       )
+   <|>take 0 <$> field "labelalpha"
+   <|>take 0 <$> field "sortinit"
+   <|>take 0 <$> field "sortinithash"
+   <|>take 0 <$> field "labelnamesource"
+   <|>take 0 <$> field "labeltitlesource"
+   <|>field "title"
+   <|>field "year"
+   <|>field "eprinttype"
+   <|>verbField "url"
+   <|>verbField "eprint"
   
   tqu "endentry"
      
