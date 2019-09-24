@@ -7,9 +7,10 @@ import Text.Megaparsec
 import Text.Megaparsec.Char
 
 import qualified Text.BibTeX.Entry as BibTeX
+import qualified Text.BibTeX.Format as BibTeX
 
 import Control.Arrow (first)
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, forM_)
 import Data.List (intercalate)
 import Data.Void
 
@@ -112,6 +113,6 @@ main :: IO ()
 main = do
   let fName = "web.bbl"
   fConts <- readFile fName
-  let entry = runParser (many $ try bblEntry) fName fConts
-  print entry
+  let Right entries = runParser (many $ try bblEntry) fName fConts
+  forM_ entries $ \entry -> putStrLn (BibTeX.entry entry)
   return ()
