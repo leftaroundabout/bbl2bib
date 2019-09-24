@@ -7,16 +7,30 @@ import Text.Megaparsec.Char
 
 import qualified Text.BibTeX.Entry as BibTeX
 
+import Control.Monad (replicateM)
+import Data.List (intercalate)
 import Data.Void
 
 tqu :: String -> Parsec Void String String
-tqu s = char '\\' >> string s
+tqu s = whitespace >> char '\\' >> string s
 
 tqu1 :: String -> String -> Parsec Void String (String,String)
 tqu1 s f = (,) <$> tqu s <*> braced' (string f)
 
+whitespace :: Parsec Void String String
+whitespace = do
+   mc <- optional $ oneOf " \n\t%"
+   case mc of
+    Just c -> do
+     comment <- case c of
+      '%' -> many $ noneOf "\n"
+      _   -> pure ""
+     (c:).(comment++) <$> whitespace
+    Nothing -> pure ""
+
 braced' :: Parsec Void String a -> Parsec Void String a
 braced' p = do
+   whitespace
    char '{'
    contents <- go 0
    char '}'
